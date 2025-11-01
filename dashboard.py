@@ -154,8 +154,8 @@ st.plotly_chart(fig_box, use_container_width=True)
 # --- YOUR ANALYSIS FOR SECTION 1 ---
 _ANALYSIS_TEXT_1 = """
 #### ✒️ Analysis:
-*   **Observation 1:** There appears to be a clear difference in the median follower count between successful and cancelled trips.
-*   **Insight 2:** The presence of high-follower outliers in the 'Successful' category suggests that a large audience is a significant factor.
+*   ** 1:** There appears to be a clear difference in the median follower count between successful and cancelled trips.
+*   ** 2:** The presence of high-follower outliers in the 'Successful' category suggests that a large audience is a significant factor.
 """
 st.info(_ANALYSIS_TEXT_1)
 # ------------------------------------
@@ -204,9 +204,9 @@ else:
     max_possible_rate = df_threshold_calc['fly_rate_at_or_above'].max() if not df_threshold_calc.empty else 0
     st.warning(f"The target of {target_fly_rate}% was not reached with the current filters. The maximum achievable fly rate for any segment is {max_possible_rate:.1f}%.")
 _ANALYSIS_TEXT_2 = """
-### ✒️ Analysis:
-*   **Observation 1:** There appears to be a clear difference in the median follower count between successful and cancelled trips.
-*   **Insight 2:** The presence of high-follower outliers in the 'Successful' category suggests that a large audience is a significant factor.
+#### ✒️ Analysis:
+*   ** 1:** There appears to be a clear difference in the median follower count between successful and cancelled trips.
+*   ** 2:** The presence of high-follower outliers in the 'Successful' category suggests that a large audience is a significant factor.
 """
 st.info(_ANALYSIS_TEXT_2)
 st.markdown("---")
@@ -241,8 +241,8 @@ if not cohort_summary.empty:
 else:
     st.warning("No cohorts to display based on the current filters.")
 _ANALYSIS_TEXT_3 = """
-### ✒️ Analysis:
-*   **Observation 1:** There appears to be a clear difference in the median follower count between successful and cancelled trips.
-*   **Insight 2:** The presence of high-follower outliers in the 'Successful' category suggests that a large audience is a significant factor.
+#### ✒️ Analysis:
+*   ** 1:** There appears to be a clear difference in the median follower count between successful and cancelled trips.
+*   ** 2:** The presence of high-follower outliers in the 'Successful' category suggests that a large audience is a significant factor.
 """
 st.info(_ANALYSIS_TEXT_3)
