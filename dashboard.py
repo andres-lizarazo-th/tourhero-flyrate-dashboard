@@ -5,7 +5,7 @@ from google.oauth2.service_account import Credentials
 import plotly.express as px
 from datetime import datetime
 
-# You can now remove the debugging block from the top of your file if you wish.
+# You can now remove the debugging block from the top of your file.
 
 # -----------------------------------------------------------------------------
 # Page Configuration
@@ -17,20 +17,20 @@ st.set_page_config(
 )
 
 # -----------------------------------------------------------------------------
-# Secure Data Loading from Google Sheets (WITH THE FIX)
+# Secure Data Loading from Google Sheets (WITH THE FINAL FIX)
 # -----------------------------------------------------------------------------
-# FIX 1: The function now accepts 'secrets' as an input argument.
 @st.cache_data(ttl=600)
-def load_data_from_gsheet(sheet_name, secrets):
+# FIX 1: Add a leading underscore to the 'secrets' argument.
+def load_data_from_gsheet(sheet_name, _secrets):
     """Securely loads data from a private Google Sheet using Streamlit Secrets."""
     try:
         scopes = [
             'https://www.googleapis.com/auth/spreadsheets',
             'https://www.googleapis.com/auth/drive'
         ]
-        # FIX 2: We use the 'secrets' object that was passed into the function.
+        # FIX 2: Use the new '_secrets' variable here as well.
         creds = Credentials.from_service_account_info(
-            secrets["gcp_service_account"], scopes=scopes
+            _secrets["gcp_service_account"], scopes=scopes
         )
         client = gspread.authorize(creds)
         sheet = client.open(sheet_name).sheet1
@@ -57,7 +57,7 @@ def load_data_from_gsheet(sheet_name, secrets):
 # #############################################################################
 # # IMPORTANT: CHANGE THIS LINE TO MATCH THE EXACT NAME OF YOUR GOOGLE SHEET   #
 # #############################################################################
-# FIX 3: We now pass st.secrets as the second argument when calling the function.
+# The line where you call the function does NOT change.
 df_original = load_data_from_gsheet("TourHero_Fly_Rate_Data", st.secrets)
 # #############################################################################
 
