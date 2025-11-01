@@ -1,5 +1,7 @@
 import streamlit as st
 import pandas as pd
+import gspread
+from google.oauth2.service_account import Credentials
 import plotly.express as px
 from datetime import datetime
 
@@ -13,32 +15,57 @@ st.set_page_config(
 )
 
 # -----------------------------------------------------------------------------
-# Data Loading and Initial Preparation
+# Secure Data Loading from Google Sheets
 # -----------------------------------------------------------------------------
-@st.cache_data
-def load_data(filepath):
+@st.cache_data(ttl=600) # Cache the data for 10 minutes to avoid re-fetching on every interaction
+def load_data_from_gsheet(sheet_name):
+    """Securely loads data from a private Google Sheet using Streamlit Secrets."""
     try:
-        df = pd.read_csv(filepath)
-        df.columns = df.columns.str.replace(' ', '_').str.lower()
+        scopes = [
+            'https://www.googleapis.com/auth/spreadsheets',
+            'https://www.googleapis.com/auth/drive'
+        ]
+        creds = Credentials.from_service_account_info(
+            st.secrets["gcp_service_account"], scopes=scopes
+        )
+        client = gspread.authorize(creds)
         
-        # --- Data Type Conversion ---
+        # Open the Google Sheet by its exact name
+        sheet = client.open(sheet_name).sheet1
+        
+        # Get all values and convert to a pandas DataFrame
+        data = sheet.get_all_records()
+        df = pd.DataFrame(data)
+        
+        # --- Data Type Conversion and Cleaning ---
+        df.columns = df.columns.str.replace(' ', '_').str.lower()
         if 'follower_count' in df.columns:
             df['follower_count'] = pd.to_numeric(df['follower_count'], errors='coerce').fillna(0)
-        # Convert 'published_date' to datetime objects for filtering
         if 'published_date' in df.columns:
             df['published_date'] = pd.to_datetime(df['published_date'], errors='coerce')
-            
+        if 'shell' in df.columns:
+            # Handle string representations of booleans (e.g., 'TRUE', 'FALSE')
+            df['shell'] = df['shell'].astype(str).str.upper().map({'TRUE': True, 'FALSE': False})
+
         return df
-    except FileNotFoundError:
-        st.error(f"Error: The file '{filepath}' was not found. Please ensure it's in the same folder as the script.")
+    except gspread.exceptions.SpreadsheetNotFound:
+        st.error(f"Error: The Google Sheet named '{sheet_name}' was not found. Please check the name and sharing permissions.")
+        return None
+    except Exception as e:
+        st.error(f"An error occurred while loading data from Google Sheets: {e}")
         return None
 
-df_original = load_data('tourhero_data2.csv')
+# #############################################################################
+# # IMPORTANT: CHANGE THIS LINE TO MATCH THE EXACT NAME OF YOUR GOOGLE SHEET   #
+# #############################################################################
+df_original = load_data_from_gsheet("TourHero_Fly_Rate_Data") 
+# #############################################################################
 
+# Stop the app if data loading failed
 if df_original is None:
     st.stop()
 
-# Drop rows where date conversion failed
+# Drop rows where essential date data is missing after conversion
 df_original.dropna(subset=['published_date'], inplace=True)
 
 # -----------------------------------------------------------------------------
@@ -46,66 +73,55 @@ df_original.dropna(subset=['published_date'], inplace=True)
 # -----------------------------------------------------------------------------
 st.sidebar.header("Analysis Filters")
 
-# --- Filter 1: Shell Status ---
+# Filter 1: Shell Status
 shell_filter = st.sidebar.radio(
     "Select Trip Type:",
     ('All Trips', 'Only "Shell" Trips', 'Only "Non-Shell" Trips'),
     key='shell_filter'
 )
 
-# --- Filter 2: Market (Multi-select) ---
+# Filter 2: Market (Multi-select)
 markets = sorted(df_original['market_-_cleaned'].dropna().unique())
-selected_markets = st.sidebar.multiselect(
-    'Select Market(s):',
-    options=markets,
-    default=markets
-)
+selected_markets = st.sidebar.multiselect('Select Market(s):', options=markets, default=markets)
 
-# --- Filter 3: Published Date (Date Range) ---
+# Filter 3: Published Date (Date Range)
 min_date = df_original['published_date'].min().date()
 max_date = df_original['published_date'].max().date()
-selected_date_range = st.sidebar.date_input(
-    "Select Published Date Range:",
-    value=(min_date, max_date),
-    min_value=min_date,
-    max_value=max_date
-)
+selected_date_range = st.sidebar.date_input("Select Published Date Range:", value=(min_date, max_date), min_value=min_date, max_value=max_date)
 
-# --- Filter 4: Follower Count (Range Slider) ---
+# Filter 4: Follower Count (Range Slider)
 min_followers = int(df_original['follower_count'].min())
 max_followers = int(df_original['follower_count'].max())
-selected_follower_range = st.sidebar.slider(
-    'Filter by Follower Count:',
-    min_value=min_followers,
-    max_value=max_followers,
-    value=(min_followers, max_followers)
-)
+selected_follower_range = st.sidebar.slider('Filter by Follower Count:', min_value=min_followers, max_value=max_followers, value=(min_followers, max_followers))
 
 use_log_scale = st.sidebar.checkbox("Use Log Scale on Follower Count Graph", value=True)
 
 # -----------------------------------------------------------------------------
 # Apply All Filters to the Data
 # -----------------------------------------------------------------------------
-# Start with the original dataframe and apply filters sequentially
 df_filtered = df_original.copy()
 
-# Apply Shell filter
 if shell_filter == 'Only "Shell" Trips':
     df_filtered = df_filtered[df_filtered['shell'] == True]
 elif shell_filter == 'Only "Non-Shell" Trips':
     df_filtered = df_filtered[df_filtered['shell'] == False]
 
-# Apply other filters
+if selected_markets:
+    df_filtered = df_filtered[df_filtered['market_-_cleaned'].isin(selected_markets)]
+
+if len(selected_date_range) == 2:
+    df_filtered = df_filtered[
+        (df_filtered['published_date'].dt.date >= selected_date_range[0]) &
+        (df_filtered['published_date'].dt.date <= selected_date_range[1])
+    ]
+
 df_filtered = df_filtered[
-    (df_filtered['market_-_cleaned'].isin(selected_markets)) &
-    (df_filtered['published_date'].dt.date >= selected_date_range[0]) &
-    (df_filtered['published_date'].dt.date <= selected_date_range[1]) &
     (df_filtered['follower_count'] >= selected_follower_range[0]) &
     (df_filtered['follower_count'] <= selected_follower_range[1])
 ]
 
 # -----------------------------------------------------------------------------
-# Data Cleaning (on the already filtered data)
+# Final Data Cleaning (on the already filtered data)
 # -----------------------------------------------------------------------------
 df_cleaned = df_filtered[df_filtered['market_-_cleaned'] != 'mba'].copy()
 allowed_statuses = ['cancelled', 'done', 'live', 'confirmed']
@@ -140,7 +156,6 @@ col3.metric("Median Follower Count", f"{median_followers:,.0f}")
 
 # --- EDA Section ---
 with st.expander("🔍 Click here for more Exploratory Data Analysis"):
-    # (EDA code remains the same as before)
     col1_eda, col2_eda = st.columns(2)
     with col1_eda:
         st.subheader("Distribution of Trips by Follower Bracket")
@@ -161,7 +176,7 @@ st.markdown("---")
 
 # --- Analysis 1: Correlation ---
 st.subheader("1. Follower Count Distribution by Trip Outcome")
-st.markdown("This chart shows if successful trips tend to be hosted by TourHeros with more followers. **Toggle the 'Use Log Scale' option in the sidebar to better visualize data with large outliers.**")
+st.markdown("This chart shows if successful trips tend to be hosted by TourHeros with more followers.")
 fig_box = px.box(df_cleaned, x='trip_success', y='follower_count', color='trip_success', points="all", title="Follower Count: Successful vs. Cancelled Trips", labels={"trip_success": "Trip Outcome", "follower_count": "Follower Count"}, color_discrete_map={"Successful": "green", "Cancelled": "red"})
 if use_log_scale:
     fig_box.update_yaxes(type="log", title_text="Follower Count (Log Scale)")
@@ -177,25 +192,19 @@ fig_bar = px.bar(fly_rate_by_bin, x='follower_bin', y='fly_rate_percent', title=
 fig_bar.add_hline(y=fly_rate, line_dash="dot", annotation_text=f"Average Fly Rate: {fly_rate:.1f}%", annotation_position="bottom right")
 fig_bar.update_layout(yaxis_range=[0,100])
 st.plotly_chart(fig_bar, use_container_width=True)
-# The st.info box has been REMOVED as requested.
 
 st.markdown("---")
 
 # --- Analysis 3: Cohorts ---
 st.subheader("3. Deeper Analysis of User Research Cohorts")
-st.markdown(f"Based on the median follower count of **{median_followers:,.0f}** for the current selection, we have created the four key cohorts for @ramona to conduct interviews.")
+st.markdown(f"Based on the median follower count of **{median_followers:,.0f}** for the current selection, the four key cohorts are:")
 df_cleaned['follower_level'] = df_cleaned['follower_count'].apply(lambda x: 'High Followers' if x >= median_followers else 'Low Followers')
 df_cleaned['cohort'] = df_cleaned['follower_level'] + " | " + df_cleaned['trip_success']
-cohort_summary = df_cleaned.groupby('cohort').agg(
-    number_of_trips=('tour_id', 'count'),
-    number_of_unique_tourheros=('tourhero_email', 'nunique'),
-    avg_follower_count=('follower_count', 'mean')
-).round(0).reset_index().sort_values(by='cohort', ascending=False)
+cohort_summary = df_cleaned.groupby('cohort').agg(number_of_trips=('tour_id', 'count'), number_of_unique_tourheros=('tourhero_email', 'nunique'), avg_follower_count=('follower_count', 'mean')).round(0).reset_index().sort_values(by='cohort', ascending=False)
 st.dataframe(cohort_summary, use_container_width=True)
 
-# Deeper Cohort Analysis
 st.subheader("Cohort Composition by Market")
-st.markdown("This chart shows the market breakdown within each of the four cohorts. It helps identify if certain markets are more prevalent in successful or cancelled groups.")
+st.markdown("This chart shows the market breakdown within each of the four cohorts.")
 cohort_market_dist = df_cleaned.groupby(['cohort', 'market_-_cleaned'], observed=False).size().unstack(fill_value=0)
 cohort_market_percent = cohort_market_dist.apply(lambda x: x / x.sum() * 100, axis=1).reset_index()
 cohort_market_plot_df = cohort_market_percent.melt(id_vars='cohort', var_name='market', value_name='percentage')
@@ -204,7 +213,6 @@ st.plotly_chart(fig_cohort_market, use_container_width=True)
 
 # Download Section
 st.markdown("#### Download Cohort Data")
-# Check if there are any cohorts to select from
 if not cohort_summary.empty:
     selected_cohort = st.selectbox("Choose a cohort to view and download its data:", cohort_summary['cohort'].unique())
     cohort_data_to_show = df_cleaned[df_cleaned['cohort'] == selected_cohort][['tourhero_email', 'tour_id', 'follower_count', 'trip_success']]
