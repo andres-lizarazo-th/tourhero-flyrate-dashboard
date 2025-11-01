@@ -154,8 +154,9 @@ st.plotly_chart(fig_box, use_container_width=True)
 # --- YOUR ANALYSIS FOR SECTION 1 ---
 _ANALYSIS_TEXT_1 = """
 #### ✒️ Analysis:
-*   **1:** There appears to be a clear difference in the median follower count between successful and cancelled trips.
-*   **2:** The presence of high-follower outliers in the 'Successful' category suggests that a large audience is a significant factor.
+*   **1:** Median follower count between successful (7k) and cancelled trips (3.3k) clearly different.
+*   **3:** Fly-rate 4% without shells and 2.7% including shells.
+*   **3:** The presence of high-follower outliers in the 'Successful' category suggests that a large audience is a significant factor. Here, the Shells-trips increment the share of the 0-5k followers segment.
 """
 st.info(_ANALYSIS_TEXT_1)
 # ------------------------------------
@@ -227,6 +228,12 @@ cohort_market_percent = cohort_market_dist.apply(lambda x: x / x.sum() * 100, ax
 cohort_market_plot_df = cohort_market_percent.melt(id_vars='cohort', var_name='market', value_name='percentage')
 fig_cohort_market = px.bar(cohort_market_plot_df, x='cohort', y='percentage', color='market', title='Market Distribution Within Each Cohort', labels={'cohort': 'User Research Cohort', 'percentage': 'Percentage of Trips (%)'}, text=cohort_market_plot_df['percentage'].apply(lambda x: f'{x:.0f}%' if x > 5 else ''))
 st.plotly_chart(fig_cohort_market, use_container_width=True)
+_ANALYSIS_TEXT_3 = """
+#### ✒️ Analysis:
+*   **1:** There appears to be a clear difference in the median follower count between successful and cancelled trips.
+*   **2:** The presence of high-follower outliers in the 'Successful' category suggests that a large audience is a significant factor.
+"""
+st.info(_ANALYSIS_TEXT_3)
 # Download Section
 st.markdown("#### Download Cohort Data")
 if not cohort_summary.empty:
@@ -240,9 +247,4 @@ if not cohort_summary.empty:
     st.download_button(label="Download list as CSV", data=csv, file_name=f"{selected_cohort.replace(' ', '_').replace('|', '')}.csv", mime='text/csv')
 else:
     st.warning("No cohorts to display based on the current filters.")
-_ANALYSIS_TEXT_3 = """
-#### ✒️ Analysis:
-*   **1:** There appears to be a clear difference in the median follower count between successful and cancelled trips.
-*   **2:** The presence of high-follower outliers in the 'Successful' category suggests that a large audience is a significant factor.
-"""
-st.info(_ANALYSIS_TEXT_3)
+
