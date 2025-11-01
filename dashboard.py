@@ -1,0 +1,219 @@
+import streamlit as st
+import pandas as pd
+import plotly.express as px
+from datetime import datetime
+
+# -----------------------------------------------------------------------------
+# Page Configuration
+# -----------------------------------------------------------------------------
+st.set_page_config(
+    page_title="TourHero Fly Rate Analysis",
+    layout="wide",
+    initial_sidebar_state="expanded"
+)
+
+# -----------------------------------------------------------------------------
+# Data Loading and Initial Preparation
+# -----------------------------------------------------------------------------
+@st.cache_data
+def load_data(filepath):
+    try:
+        df = pd.read_csv(filepath)
+        df.columns = df.columns.str.replace(' ', '_').str.lower()
+        
+        # --- Data Type Conversion ---
+        if 'follower_count' in df.columns:
+            df['follower_count'] = pd.to_numeric(df['follower_count'], errors='coerce').fillna(0)
+        # Convert 'published_date' to datetime objects for filtering
+        if 'published_date' in df.columns:
+            df['published_date'] = pd.to_datetime(df['published_date'], errors='coerce')
+            
+        return df
+    except FileNotFoundError:
+        st.error(f"Error: The file '{filepath}' was not found. Please ensure it's in the same folder as the script.")
+        return None
+
+df_original = load_data('tourhero_data2.csv')
+
+if df_original is None:
+    st.stop()
+
+# Drop rows where date conversion failed
+df_original.dropna(subset=['published_date'], inplace=True)
+
+# -----------------------------------------------------------------------------
+# Sidebar Filters
+# -----------------------------------------------------------------------------
+st.sidebar.header("Analysis Filters")
+
+# --- Filter 1: Shell Status ---
+shell_filter = st.sidebar.radio(
+    "Select Trip Type:",
+    ('All Trips', 'Only "Shell" Trips', 'Only "Non-Shell" Trips'),
+    key='shell_filter'
+)
+
+# --- Filter 2: Market (Multi-select) ---
+markets = sorted(df_original['market_-_cleaned'].dropna().unique())
+selected_markets = st.sidebar.multiselect(
+    'Select Market(s):',
+    options=markets,
+    default=markets
+)
+
+# --- Filter 3: Published Date (Date Range) ---
+min_date = df_original['published_date'].min().date()
+max_date = df_original['published_date'].max().date()
+selected_date_range = st.sidebar.date_input(
+    "Select Published Date Range:",
+    value=(min_date, max_date),
+    min_value=min_date,
+    max_value=max_date
+)
+
+# --- Filter 4: Follower Count (Range Slider) ---
+min_followers = int(df_original['follower_count'].min())
+max_followers = int(df_original['follower_count'].max())
+selected_follower_range = st.sidebar.slider(
+    'Filter by Follower Count:',
+    min_value=min_followers,
+    max_value=max_followers,
+    value=(min_followers, max_followers)
+)
+
+use_log_scale = st.sidebar.checkbox("Use Log Scale on Follower Count Graph", value=True)
+
+# -----------------------------------------------------------------------------
+# Apply All Filters to the Data
+# -----------------------------------------------------------------------------
+# Start with the original dataframe and apply filters sequentially
+df_filtered = df_original.copy()
+
+# Apply Shell filter
+if shell_filter == 'Only "Shell" Trips':
+    df_filtered = df_filtered[df_filtered['shell'] == True]
+elif shell_filter == 'Only "Non-Shell" Trips':
+    df_filtered = df_filtered[df_filtered['shell'] == False]
+
+# Apply other filters
+df_filtered = df_filtered[
+    (df_filtered['market_-_cleaned'].isin(selected_markets)) &
+    (df_filtered['published_date'].dt.date >= selected_date_range[0]) &
+    (df_filtered['published_date'].dt.date <= selected_date_range[1]) &
+    (df_filtered['follower_count'] >= selected_follower_range[0]) &
+    (df_filtered['follower_count'] <= selected_follower_range[1])
+]
+
+# -----------------------------------------------------------------------------
+# Data Cleaning (on the already filtered data)
+# -----------------------------------------------------------------------------
+df_cleaned = df_filtered[df_filtered['market_-_cleaned'] != 'mba'].copy()
+allowed_statuses = ['cancelled', 'done', 'live', 'confirmed']
+df_cleaned = df_cleaned[df_cleaned['fixed_active_status'].isin(allowed_statuses)]
+
+def map_success(status):
+    return 'Successful' if status in ['done', 'live', 'confirmed'] else 'Cancelled'
+
+if df_cleaned.empty:
+    st.warning("No data available for the current filter selection. Please widen your filter criteria.")
+    st.stop()
+    
+df_cleaned['trip_success'] = df_cleaned['fixed_active_status'].apply(map_success)
+    
+# -----------------------------------------------------------------------------
+# Main Dashboard Body
+# -----------------------------------------------------------------------------
+st.title("📊 Interactive Dashboard: Follower Count vs. Trip Fly Rate")
+st.markdown("Use the filters on the left to drill down into the data.")
+
+# --- KPIs ---
+st.subheader("High-Level Metrics (for current selection)")
+total_trips = len(df_cleaned)
+successful_trips = len(df_cleaned[df_cleaned['trip_success'] == 'Successful'])
+fly_rate = (successful_trips / total_trips * 100) if total_trips > 0 else 0
+median_followers = df_cleaned['follower_count'].median()
+
+col1, col2, col3 = st.columns(3)
+col1.metric("Total Trips Analyzed", f"{total_trips:,}")
+col2.metric("Overall Fly Rate (Success Rate)", f"{fly_rate:.1f}%")
+col3.metric("Median Follower Count", f"{median_followers:,.0f}")
+
+# --- EDA Section ---
+with st.expander("🔍 Click here for more Exploratory Data Analysis"):
+    # (EDA code remains the same as before)
+    col1_eda, col2_eda = st.columns(2)
+    with col1_eda:
+        st.subheader("Distribution of Trips by Follower Bracket")
+        bins = [0, 5000, 20000, 50000, 100000, 500000, float('inf')]
+        labels = ['0-5k', '5k-20k', '20k-50k', '50k-100k', '100k-500k', '500k+']
+        df_cleaned['follower_bin'] = pd.cut(df_cleaned['follower_count'], bins=bins, labels=labels, right=False)
+        follower_dist = df_cleaned['follower_bin'].value_counts().reset_index()
+        fig_pie = px.pie(follower_dist, values='count', names='follower_bin', title='Percentage of Trips per Bracket', color_discrete_sequence=px.colors.sequential.RdBu)
+        st.plotly_chart(fig_pie, use_container_width=True)
+    with col2_eda:
+        st.subheader("Fly Rate by Market Category")
+        fly_rate_by_market = df_cleaned.groupby('market_-_cleaned', observed=False)['trip_success'].apply(lambda x: (x == 'Successful').sum() / len(x) * 100 if len(x) > 0 else 0).reset_index(name='fly_rate_percent').sort_values(by='fly_rate_percent', ascending=False)
+        fig_market = px.bar(fly_rate_by_market, x='market_-_cleaned', y='fly_rate_percent', title='Fly Rate (%) by Market', labels={'market_-_cleaned': 'Market', 'fly_rate_percent': 'Fly Rate (%)'}, text=fly_rate_by_market['fly_rate_percent'].apply(lambda x: f'{x:.1f}%'))
+        fig_market.update_layout(yaxis_range=[0,100])
+        st.plotly_chart(fig_market, use_container_width=True)
+
+st.markdown("---")
+
+# --- Analysis 1: Correlation ---
+st.subheader("1. Follower Count Distribution by Trip Outcome")
+st.markdown("This chart shows if successful trips tend to be hosted by TourHeros with more followers. **Toggle the 'Use Log Scale' option in the sidebar to better visualize data with large outliers.**")
+fig_box = px.box(df_cleaned, x='trip_success', y='follower_count', color='trip_success', points="all", title="Follower Count: Successful vs. Cancelled Trips", labels={"trip_success": "Trip Outcome", "follower_count": "Follower Count"}, color_discrete_map={"Successful": "green", "Cancelled": "red"})
+if use_log_scale:
+    fig_box.update_yaxes(type="log", title_text="Follower Count (Log Scale)")
+else:
+    fig_box.update_yaxes(title_text="Follower Count (Linear Scale)")
+st.plotly_chart(fig_box, use_container_width=True)
+
+# --- Analysis 2: Threshold ---
+st.subheader("2. Identifying the Fly Rate Threshold")
+st.markdown("This chart shows the success rate for different follower brackets. The dotted line represents the average fly rate for your current selection.")
+fly_rate_by_bin = df_cleaned.groupby('follower_bin', observed=False)['trip_success'].apply(lambda x: (x == 'Successful').sum() / len(x) * 100 if len(x) > 0 else 0).reset_index(name='fly_rate_percent')
+fig_bar = px.bar(fly_rate_by_bin, x='follower_bin', y='fly_rate_percent', title="Fly Rate (%) by TourHero Follower Bracket", labels={"follower_bin": "Follower Bracket", "fly_rate_percent": "Fly Rate (%)"}, text=fly_rate_by_bin['fly_rate_percent'].apply(lambda x: f'{x:.1f}%'))
+fig_bar.add_hline(y=fly_rate, line_dash="dot", annotation_text=f"Average Fly Rate: {fly_rate:.1f}%", annotation_position="bottom right")
+fig_bar.update_layout(yaxis_range=[0,100])
+st.plotly_chart(fig_bar, use_container_width=True)
+# The st.info box has been REMOVED as requested.
+
+st.markdown("---")
+
+# --- Analysis 3: Cohorts ---
+st.subheader("3. Deeper Analysis of User Research Cohorts")
+st.markdown(f"Based on the median follower count of **{median_followers:,.0f}** for the current selection, we have created the four key cohorts for @ramona to conduct interviews.")
+df_cleaned['follower_level'] = df_cleaned['follower_count'].apply(lambda x: 'High Followers' if x >= median_followers else 'Low Followers')
+df_cleaned['cohort'] = df_cleaned['follower_level'] + " | " + df_cleaned['trip_success']
+cohort_summary = df_cleaned.groupby('cohort').agg(
+    number_of_trips=('tour_id', 'count'),
+    number_of_unique_tourheros=('tourhero_email', 'nunique'),
+    avg_follower_count=('follower_count', 'mean')
+).round(0).reset_index().sort_values(by='cohort', ascending=False)
+st.dataframe(cohort_summary, use_container_width=True)
+
+# Deeper Cohort Analysis
+st.subheader("Cohort Composition by Market")
+st.markdown("This chart shows the market breakdown within each of the four cohorts. It helps identify if certain markets are more prevalent in successful or cancelled groups.")
+cohort_market_dist = df_cleaned.groupby(['cohort', 'market_-_cleaned'], observed=False).size().unstack(fill_value=0)
+cohort_market_percent = cohort_market_dist.apply(lambda x: x / x.sum() * 100, axis=1).reset_index()
+cohort_market_plot_df = cohort_market_percent.melt(id_vars='cohort', var_name='market', value_name='percentage')
+fig_cohort_market = px.bar(cohort_market_plot_df, x='cohort', y='percentage', color='market', title='Market Distribution Within Each Cohort', labels={'cohort': 'User Research Cohort', 'percentage': 'Percentage of Trips (%)'}, text=cohort_market_plot_df['percentage'].apply(lambda x: f'{x:.0f}%' if x > 5 else ''))
+st.plotly_chart(fig_cohort_market, use_container_width=True)
+
+# Download Section
+st.markdown("#### Download Cohort Data")
+# Check if there are any cohorts to select from
+if not cohort_summary.empty:
+    selected_cohort = st.selectbox("Choose a cohort to view and download its data:", cohort_summary['cohort'].unique())
+    cohort_data_to_show = df_cleaned[df_cleaned['cohort'] == selected_cohort][['tourhero_email', 'tour_id', 'follower_count', 'trip_success']]
+    st.dataframe(cohort_data_to_show, use_container_width=True)
+    
+    @st.cache_data
+    def convert_df_to_csv(df):
+        return df.to_csv(index=False).encode('utf-8')
+    csv = convert_df_to_csv(cohort_data_to_show)
+    st.download_button(label="Download list as CSV", data=csv, file_name=f"{selected_cohort.replace(' ', '_').replace('|', '')}.csv", mime='text/csv')
+else:
+    st.warning("No cohorts to display based on the current filters.")
