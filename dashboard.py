@@ -5,7 +5,6 @@ from google.oauth2.service_account import Credentials
 import plotly.express as px
 from datetime import datetime
 
-# You can now remove the debugging block from the top of your file.
 
 # -----------------------------------------------------------------------------
 # Page Configuration
