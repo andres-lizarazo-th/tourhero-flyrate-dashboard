@@ -112,17 +112,20 @@ df_cleaned['trip_success'] = df_cleaned['fixed_active_status'].apply(map_success
 st.title("📊 Follower Count vs. Trip Fly Rate")
 st.markdown("Use the filters on the left to drill down into the data.")
 # KPIs
+# --- KPIs ---
 st.subheader("High-Level Metrics (for current selection)")
 total_trips = len(df_cleaned)
 successful_trips = len(df_cleaned[df_cleaned['trip_success'] == 'Successful'])
 fly_rate = (successful_trips / total_trips * 100) if total_trips > 0 else 0
 median_followers = df_cleaned['follower_count'].median()
-col1, col2, col3 = st.columns(3)
+mean_followers = df_cleaned['follower_count'].mean() # <-- Added this calculation
+
+# Changed to 4 columns to fit the new metric
+col1, col2, col3, col4 = st.columns(4) 
 col1.metric("Total Trips Analyzed", f"{total_trips:,}")
 col2.metric("Overall Fly Rate (Success Rate)", f"{fly_rate:.1f}%")
 col3.metric("Median Follower Count", f"{median_followers:,.0f}")
-# EDA Section
-# EDA Section
+col4.metric("Mean (Average) Follower Count", f"{mean_followers:,.0f}") # <-- Added this new metric
 st.subheader("Exploratory Data Analysis")
 col1_eda, col2_eda = st.columns(2)
 with col1_eda:
