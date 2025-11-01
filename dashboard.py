@@ -167,14 +167,21 @@ hist_df = df_cleaned[
 ]
 
 # Create the histogram
+# Create the histogram
 fig_hist = px.histogram(
     hist_df,
     x='follower_count',
     title=f"Distribution of TourHeros between {view_range[0]:,} and {view_range[1]:,} followers",
     labels={'follower_count': 'Follower Count'},
-    color='trip_success', # Color bars by success status
-    barmode='stack',      # Stack successful/cancelled bars
-    color_discrete_map={"Successful": "green", "Cancelled": "red"}
+    color='trip_success',
+    barmode='stack',
+    # --- CHANGES ARE HERE ---
+    height=600,  # Increase the height of the chart to 600 pixels
+    color_discrete_map={
+        "Successful": "royalblue",  # A softer, professional blue
+        "Cancelled": "darkgray"      # A neutral gray for cancelled trips
+    }
+    # ------------------------
 )
 
 # This line explicitly sets the bin size to 10k, as you requested
