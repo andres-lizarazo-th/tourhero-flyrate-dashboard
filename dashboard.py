@@ -233,9 +233,9 @@ fig_cohort_market = px.bar(cohort_market_plot_df, x='cohort', y='percentage', co
 st.plotly_chart(fig_cohort_market, use_container_width=True)
 _ANALYSIS_TEXT_3 = """
 #### ✒️ Analysis:
-*   **1:** The threshold for getting a better chance of fly-rate over average is over 20k followers. 
-*   **2:** However, to get closer to 20% with current business conditions, the followers should be higher than 300k.
-*   **2:** The amount of data for the current trips is too low to perform a highly accurate analysis, as we have only a small number of trips created with heroes having more than 300k followers (17 in total, of which 15 were cancelled).
+*   **1:** The 'creator' market accounts for over 96% of all trip cancellations.
+*   **2:** Successful low-follower hosts have diverse niches; 43% are in 'wellness' with only 356 average followers.
+*   **2:** Successful high-follower hosts average 140k followers, over 3x more than unsuccessful high-follower hosts.
 
 
 """
