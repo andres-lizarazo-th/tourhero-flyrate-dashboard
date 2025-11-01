@@ -142,6 +142,15 @@ with col2_eda:
 st.markdown("---")
 # Analysis 1: Correlation
 st.subheader("1. Follower Count Distribution by Trip Outcome")
+
+st.markdown("This chart shows if successful trips tend to be hosted by TourHeros with more followers.")
+fig_box = px.box(df_cleaned, x='trip_success', y='follower_count', color='trip_success', points="all", title="Follower Count: Successful vs. Cancelled Trips", labels={"trip_success": "Trip Outcome", "follower_count": "Follower Count"}, color_discrete_map={"Successful": "green", "Cancelled": "red"})
+if use_log_scale:
+    fig_box.update_yaxes(type="log", title_text="Follower Count (Log Scale)")
+else:
+    fig_box.update_yaxes(title_text="Follower Count (Linear Scale)")
+st.plotly_chart(fig_box, use_container_width=True)
+
 # --- YOUR ANALYSIS FOR SECTION 1 ---
 _ANALYSIS_TEXT_1 = """
 ## ✒️ My Analysis for Section 1
@@ -152,13 +161,6 @@ _ANALYSIS_TEXT_1 = """
 """
 st.info(_ANALYSIS_TEXT_1)
 # ------------------------------------
-st.markdown("This chart shows if successful trips tend to be hosted by TourHeros with more followers.")
-fig_box = px.box(df_cleaned, x='trip_success', y='follower_count', color='trip_success', points="all", title="Follower Count: Successful vs. Cancelled Trips", labels={"trip_success": "Trip Outcome", "follower_count": "Follower Count"}, color_discrete_map={"Successful": "green", "Cancelled": "red"})
-if use_log_scale:
-    fig_box.update_yaxes(type="log", title_text="Follower Count (Log Scale)")
-else:
-    fig_box.update_yaxes(title_text="Follower Count (Linear Scale)")
-st.plotly_chart(fig_box, use_container_width=True)
 # Analysis 2: Threshold
 st.subheader("2. Identifying the Fly Rate Threshold")
 st.markdown("This chart shows the success rate for different follower brackets. The dotted line represents the average fly rate for your current selection.")
@@ -205,6 +207,16 @@ else:
     st.warning(f"The target of {target_fly_rate}% was not reached with the current filters. The maximum achievable fly rate for any segment is {max_possible_rate:.1f}%.")
 
 st.markdown("---")
+# --- YOUR ANALYSIS FOR SECTION 1 ---
+_ANALYSIS_TEXT_2 = """
+## ✒️ My Analysis for Section 2
+(Write your analysis here using **Markdown** for formatting.)
+
+*   **Observation 1:** There appears to be a clear difference in the median follower count between successful and cancelled trips.
+*   **Insight 2:** The presence of high-follower outliers in the 'Successful' category suggests that a large audience is a significant factor.
+"""
+st.info(_ANALYSIS_TEXT_1)
+# ------------------------------------
 # Analysis 3: Cohorts
 st.subheader("3. Deeper Analysis of User Research Cohorts")
 st.markdown(f"Based on the median follower count of **{median_followers:,.0f}** for the current selection, the four key cohorts are:")
