@@ -109,7 +109,7 @@ if df_cleaned.empty:
 df_cleaned['trip_success'] = df_cleaned['fixed_active_status'].apply(map_success)
 
 # Main Dashboard Body
-st.title("📊 Interactive Dashboard: Follower Count vs. Trip Fly Rate")
+st.title("📊 Follower Count vs. Trip Fly Rate")
 st.markdown("Use the filters on the left to drill down into the data.")
 # KPIs
 st.subheader("High-Level Metrics (for current selection)")
