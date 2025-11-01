@@ -157,6 +157,42 @@ fig_bar = px.bar(fly_rate_by_bin, x='follower_bin', y='fly_rate_percent', title=
 fig_bar.add_hline(y=fly_rate, line_dash="dot", annotation_text=f"Average Fly Rate: {fly_rate:.1f}%", annotation_position="bottom right")
 fig_bar.update_layout(yaxis_range=[0,100])
 st.plotly_chart(fig_bar, use_container_width=True)
+
+# --- NEW: Interactive Threshold Calculator ---
+st.markdown("---")
+st.subheader("Calculate Follower Threshold for a Target Fly Rate")
+st.markdown("Use the slider below to select a target fly rate. The app will calculate the minimum follower count suggested by the data to achieve this rate.")
+
+target_fly_rate = st.slider("Select your target fly rate (%):", min_value=1, max_value=100, value=25, step=1)
+
+# Perform the calculation
+# Sort the dataframe by follower count
+df_threshold_calc = df_cleaned.sort_values('follower_count').copy()
+# Create a column for successful trips (1 or 0)
+df_threshold_calc['is_successful'] = (df_threshold_calc['trip_success'] == 'Successful').astype(int)
+# Calculate the cumulative number of successful trips
+df_threshold_calc['cumulative_successes'] = df_threshold_calc['is_successful'].cumsum()
+# Calculate the cumulative number of total trips
+df_threshold_calc['cumulative_trips'] = range(1, len(df_threshold_calc) + 1)
+# Calculate the cumulative fly rate at each follower count
+df_threshold_calc['cumulative_fly_rate'] = (df_threshold_calc['cumulative_successes'] / df_threshold_calc['cumulative_trips']) * 100
+
+# Find the first row where the cumulative fly rate meets or exceeds the target
+result_df = df_threshold_calc[df_threshold_calc['cumulative_fly_rate'] >= target_fly_rate]
+
+# Display the result
+if not result_df.empty:
+    # Get the follower count from the first row that meets the criteria
+    suggested_threshold = result_df['follower_count'].iloc[0]
+    st.metric(
+        label=f"Suggested Follower Threshold for {target_fly_rate}% Fly Rate",
+        value=f"{int(suggested_threshold):,}"
+    )
+else:
+    # Handle the case where the target is never reached
+    max_possible_rate = df_threshold_calc['cumulative_fly_rate'].max() if not df_threshold_calc.empty else 0
+    st.warning(f"The target of {target_fly_rate}% was not reached with the current filters. The maximum fly rate achieved in this data segment is {max_possible_rate:.1f}%.")
+
 st.markdown("---")
 # Analysis 3: Cohorts
 st.subheader("3. Deeper Analysis of User Research Cohorts")
