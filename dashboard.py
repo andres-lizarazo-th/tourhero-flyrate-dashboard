@@ -230,8 +230,11 @@ fig_cohort_market = px.bar(cohort_market_plot_df, x='cohort', y='percentage', co
 st.plotly_chart(fig_cohort_market, use_container_width=True)
 _ANALYSIS_TEXT_3 = """
 #### ✒️ Analysis:
-*   **1:** There appears to be a clear difference in the median follower count between successful and cancelled trips.
-*   **2:** The presence of high-follower outliers in the 'Successful' category suggests that a large audience is a significant factor.
+*   **1:** The threshold for getting a better chance of fly-rate over average is over 20k followers. 
+*   **2:** However, to get closer to 20% with current business conditions, the followers should be higher than 300k.
+*   **2:** The amount of data for the current trips is too low to perform a highly accurate analysis, as we have only a small number of trips created with heroes having more than 300k followers (17 in total, of which 15 were cancelled).
+
+
 """
 st.info(_ANALYSIS_TEXT_3)
 # Download Section
