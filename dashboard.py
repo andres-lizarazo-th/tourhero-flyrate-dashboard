@@ -142,6 +142,16 @@ with col2_eda:
 st.markdown("---")
 # Analysis 1: Correlation
 st.subheader("1. Follower Count Distribution by Trip Outcome")
+# --- YOUR ANALYSIS FOR SECTION 1 ---
+_ANALYSIS_TEXT_1 = """
+## ✒️ My Analysis for Section 1
+(Write your analysis here using **Markdown** for formatting.)
+
+*   **Observation 1:** There appears to be a clear difference in the median follower count between successful and cancelled trips.
+*   **Insight 2:** The presence of high-follower outliers in the 'Successful' category suggests that a large audience is a significant factor.
+"""
+st.info(_ANALYSIS_TEXT_1)
+# ------------------------------------
 st.markdown("This chart shows if successful trips tend to be hosted by TourHeros with more followers.")
 fig_box = px.box(df_cleaned, x='trip_success', y='follower_count', color='trip_success', points="all", title="Follower Count: Successful vs. Cancelled Trips", labels={"trip_success": "Trip Outcome", "follower_count": "Follower Count"}, color_discrete_map={"Successful": "green", "Cancelled": "red"})
 if use_log_scale:
