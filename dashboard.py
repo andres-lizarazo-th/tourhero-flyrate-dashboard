@@ -5,7 +5,25 @@ from google.oauth2.service_account import Credentials
 import plotly.express as px
 from datetime import datetime
 
+st.set_option('client.showErrorDetails', True)
 
+st.header("Secrets Debugging Information")
+st.write("This section is for debugging. It shows what secrets the app can see.")
+
+# Check if the secrets object itself exists
+if hasattr(st, 'secrets'):
+    st.success("st.secrets object exists.")
+    
+    # Check the keys (the labels) inside st.secrets
+    st.write("Keys found in st.secrets:", st.secrets.keys())
+    
+    # Check if our specific key is present
+    if "gcp_service_account" in st.secrets:
+        st.success('Success! The "gcp_service_account" secret was found.')
+    else:
+        st.error('ERROR: The "gcp_service_account" secret was NOT found in the list of keys.')
+else:
+    st.error("Fatal Error: The st.secrets object does not exist at all.")
 # -----------------------------------------------------------------------------
 # Page Configuration
 # -----------------------------------------------------------------------------
