@@ -126,12 +126,14 @@ col1.metric("Total Trips Analyzed", f"{total_trips:,}")
 col2.metric("Overall Fly Rate (Success Rate)", f"{fly_rate:.1f}%")
 col3.metric("Median Follower Count", f"{median_followers:,.0f}")
 col4.metric("Mean (Average) Follower Count", f"{mean_followers:,.0f}") # <-- Added this new metric
+# EDA Section
 st.subheader("Exploratory Data Analysis")
 col1_eda, col2_eda = st.columns(2)
 with col1_eda:
     st.subheader("Distribution of Trips by Follower Bracket")
     bins = [0, 5000, 20000, 50000, 100000, 500000, float('inf')]
     labels = ['0-5k', '5k-20k', '20k-50k', '50k-100k', '100k-500k', '500k+']
+    # Ensure the 'follower_bin' column exists for later parts of the script
     df_cleaned['follower_bin'] = pd.cut(df_cleaned['follower_count'], bins=bins, labels=labels, right=False)
     follower_dist = df_cleaned['follower_bin'].value_counts().reset_index()
     fig_pie = px.pie(follower_dist, values='count', names='follower_bin', title='Percentage of Trips per Bracket', color_discrete_sequence=px.colors.sequential.RdBu)
@@ -142,6 +144,44 @@ with col2_eda:
     fig_market = px.bar(fly_rate_by_market, x='market_-_cleaned', y='fly_rate_percent', title='Fly Rate (%) by Market', labels={'market_-_cleaned': 'Market', 'fly_rate_percent': 'Fly Rate (%)'}, text=fly_rate_by_market['fly_rate_percent'].apply(lambda x: f'{x:.1f}%'))
     fig_market.update_layout(yaxis_range=[0,100])
     st.plotly_chart(fig_market, use_container_width=True)
+
+# --- NEW: Interactive Follower Count Histogram ---
+st.subheader("Follower Count Distribution (Histogram)")
+st.markdown("Most TourHeros have fewer followers. Use the slider to zoom in on a specific range and see the distribution in more detail.")
+
+# Get the max follower count for the slider's upper limit
+max_follower_val = int(df_cleaned['follower_count'].max())
+
+# Create a slider to select the range
+view_range = st.slider(
+    "Select a range to view:",
+    min_value=0,
+    max_value=max_follower_val,
+    value=(0, 200000)  # Default to a reasonable range like 0-200k
+)
+
+# Filter the dataframe based on the slider's selected range
+hist_df = df_cleaned[
+    (df_cleaned['follower_count'] >= view_range[0]) &
+    (df_cleaned['follower_count'] <= view_range[1])
+]
+
+# Create the histogram
+fig_hist = px.histogram(
+    hist_df,
+    x='follower_count',
+    title=f"Distribution of TourHeros between {view_range[0]:,} and {view_range[1]:,} followers",
+    labels={'follower_count': 'Follower Count'},
+    color='trip_success', # Color bars by success status
+    barmode='stack',      # Stack successful/cancelled bars
+    color_discrete_map={"Successful": "green", "Cancelled": "red"}
+)
+
+# This line explicitly sets the bin size to 10k, as you requested
+fig_hist.update_traces(xbins=dict(size=10000))
+
+st.plotly_chart(fig_hist, use_container_width=True)
+
 st.markdown("---")
 # Analysis 1: Correlation
 st.subheader("1. Follower Count Distribution by Trip Outcome")
