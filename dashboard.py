@@ -158,40 +158,41 @@ fig_bar.add_hline(y=fly_rate, line_dash="dot", annotation_text=f"Average Fly Rat
 fig_bar.update_layout(yaxis_range=[0,100])
 st.plotly_chart(fig_bar, use_container_width=True)
 
-# --- NEW: Interactive Threshold Calculator ---
+# --- NEW: Interactive Threshold Calculator (Corrected Logic) ---
 st.markdown("---")
 st.subheader("Calculate Follower Threshold for a Target Fly Rate")
-st.markdown("Use the slider below to select a target fly rate. The app will calculate the minimum follower count suggested by the data to achieve this rate.")
+st.markdown("Use the slider below to select a target fly rate. The app will calculate the minimum follower count suggested to achieve this rate for the group of all hosts **at or above** that follower count.")
 
 target_fly_rate = st.slider("Select your target fly rate (%):", min_value=1, max_value=100, value=25, step=1)
 
-# Perform the calculation
-# Sort the dataframe by follower count
-df_threshold_calc = df_cleaned.sort_values('follower_count').copy()
+# --- Perform the Correct Calculation ---
+# Sort the dataframe by follower count in DESCENDING order
+df_threshold_calc = df_cleaned.sort_values('follower_count', ascending=False).copy()
 # Create a column for successful trips (1 or 0)
 df_threshold_calc['is_successful'] = (df_threshold_calc['trip_success'] == 'Successful').astype(int)
-# Calculate the cumulative number of successful trips
+# Calculate the cumulative number of successful trips (from top down)
 df_threshold_calc['cumulative_successes'] = df_threshold_calc['is_successful'].cumsum()
-# Calculate the cumulative number of total trips
+# Calculate the cumulative number of total trips (from top down)
 df_threshold_calc['cumulative_trips'] = range(1, len(df_threshold_calc) + 1)
-# Calculate the cumulative fly rate at each follower count
-df_threshold_calc['cumulative_fly_rate'] = (df_threshold_calc['cumulative_successes'] / df_threshold_calc['cumulative_trips']) * 100
+# Calculate the fly rate for the group at or above the current follower count
+df_threshold_calc['fly_rate_at_or_above'] = (df_threshold_calc['cumulative_successes'] / df_threshold_calc['cumulative_trips']) * 100
 
-# Find the first row where the cumulative fly rate meets or exceeds the target
-result_df = df_threshold_calc[df_threshold_calc['cumulative_fly_rate'] >= target_fly_rate]
+# Find all rows that meet or exceed the target fly rate
+result_df = df_threshold_calc[df_threshold_calc['fly_rate_at_or_above'] >= target_fly_rate]
 
 # Display the result
 if not result_df.empty:
-    # Get the follower count from the first row that meets the criteria
-    suggested_threshold = result_df['follower_count'].iloc[0]
+    # The answer is the follower count of the LAST row in this filtered group
+    # This represents the lowest follower count that still maintains the target rate for the group above it
+    suggested_threshold = result_df['follower_count'].iloc[-1]
     st.metric(
-        label=f"Suggested Follower Threshold for {target_fly_rate}% Fly Rate",
+        label=f"Suggested Minimum Follower Threshold to achieve ≥ {target_fly_rate}% Fly Rate",
         value=f"{int(suggested_threshold):,}"
     )
 else:
     # Handle the case where the target is never reached
-    max_possible_rate = df_threshold_calc['cumulative_fly_rate'].max() if not df_threshold_calc.empty else 0
-    st.warning(f"The target of {target_fly_rate}% was not reached with the current filters. The maximum fly rate achieved in this data segment is {max_possible_rate:.1f}%.")
+    max_possible_rate = df_threshold_calc['fly_rate_at_or_above'].max() if not df_threshold_calc.empty else 0
+    st.warning(f"The target of {target_fly_rate}% was not reached with the current filters. The maximum achievable fly rate for any segment is {max_possible_rate:.1f}%.")
 
 st.markdown("---")
 # Analysis 3: Cohorts
