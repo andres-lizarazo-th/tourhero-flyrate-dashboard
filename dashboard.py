@@ -122,22 +122,23 @@ col1.metric("Total Trips Analyzed", f"{total_trips:,}")
 col2.metric("Overall Fly Rate (Success Rate)", f"{fly_rate:.1f}%")
 col3.metric("Median Follower Count", f"{median_followers:,.0f}")
 # EDA Section
-with st.expander("🔍 Click here for more Exploratory Data Analysis"):
-    col1_eda, col2_eda = st.columns(2)
-    with col1_eda:
-        st.subheader("Distribution of Trips by Follower Bracket")
-        bins = [0, 5000, 20000, 50000, 100000, 500000, float('inf')]
-        labels = ['0-5k', '5k-20k', '20k-50k', '50k-100k', '100k-500k', '500k+']
-        df_cleaned['follower_bin'] = pd.cut(df_cleaned['follower_count'], bins=bins, labels=labels, right=False)
-        follower_dist = df_cleaned['follower_bin'].value_counts().reset_index()
-        fig_pie = px.pie(follower_dist, values='count', names='follower_bin', title='Percentage of Trips per Bracket', color_discrete_sequence=px.colors.sequential.RdBu)
-        st.plotly_chart(fig_pie, use_container_width=True)
-    with col2_eda:
-        st.subheader("Fly Rate by Market Category")
-        fly_rate_by_market = df_cleaned.groupby('market_-_cleaned', observed=False)['trip_success'].apply(lambda x: (x == 'Successful').sum() / len(x) * 100 if len(x) > 0 else 0).reset_index(name='fly_rate_percent').sort_values(by='fly_rate_percent', ascending=False)
-        fig_market = px.bar(fly_rate_by_market, x='market_-_cleaned', y='fly_rate_percent', title='Fly Rate (%) by Market', labels={'market_-_cleaned': 'Market', 'fly_rate_percent': 'Fly Rate (%)'}, text=fly_rate_by_market['fly_rate_percent'].apply(lambda x: f'{x:.1f}%'))
-        fig_market.update_layout(yaxis_range=[0,100])
-        st.plotly_chart(fig_market, use_container_width=True)
+# EDA Section
+st.subheader("Exploratory Data Analysis")
+col1_eda, col2_eda = st.columns(2)
+with col1_eda:
+    st.subheader("Distribution of Trips by Follower Bracket")
+    bins = [0, 5000, 20000, 50000, 100000, 500000, float('inf')]
+    labels = ['0-5k', '5k-20k', '20k-50k', '50k-100k', '100k-500k', '500k+']
+    df_cleaned['follower_bin'] = pd.cut(df_cleaned['follower_count'], bins=bins, labels=labels, right=False)
+    follower_dist = df_cleaned['follower_bin'].value_counts().reset_index()
+    fig_pie = px.pie(follower_dist, values='count', names='follower_bin', title='Percentage of Trips per Bracket', color_discrete_sequence=px.colors.sequential.RdBu)
+    st.plotly_chart(fig_pie, use_container_width=True)
+with col2_eda:
+    st.subheader("Fly Rate by Market Category")
+    fly_rate_by_market = df_cleaned.groupby('market_-_cleaned', observed=False)['trip_success'].apply(lambda x: (x == 'Successful').sum() / len(x) * 100 if len(x) > 0 else 0).reset_index(name='fly_rate_percent').sort_values(by='fly_rate_percent', ascending=False)
+    fig_market = px.bar(fly_rate_by_market, x='market_-_cleaned', y='fly_rate_percent', title='Fly Rate (%) by Market', labels={'market_-_cleaned': 'Market', 'fly_rate_percent': 'Fly Rate (%)'}, text=fly_rate_by_market['fly_rate_percent'].apply(lambda x: f'{x:.1f}%'))
+    fig_market.update_layout(yaxis_range=[0,100])
+    st.plotly_chart(fig_market, use_container_width=True)
 st.markdown("---")
 # Analysis 1: Correlation
 st.subheader("1. Follower Count Distribution by Trip Outcome")
