@@ -1,0 +1,5 @@
+pandas
+plotly-express
+streamlit
+gspread
+oauth2client
