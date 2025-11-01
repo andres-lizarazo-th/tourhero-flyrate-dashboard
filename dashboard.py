@@ -153,7 +153,7 @@ st.plotly_chart(fig_box, use_container_width=True)
 
 # --- YOUR ANALYSIS FOR SECTION 1 ---
 _ANALYSIS_TEXT_1 = """
-### ✒️ Analysis:
+#### ✒️ Analysis:
 *   **Observation 1:** There appears to be a clear difference in the median follower count between successful and cancelled trips.
 *   **Insight 2:** The presence of high-follower outliers in the 'Successful' category suggests that a large audience is a significant factor.
 """
